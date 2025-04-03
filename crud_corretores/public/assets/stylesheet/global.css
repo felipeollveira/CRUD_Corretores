@@ -9,7 +9,7 @@
 
 * {
     margin: 0;
-    padding: 20;
+    padding: 0;
     box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -24,7 +24,7 @@ body {
 .container {
     max-width: 1200px;
     margin: 2rem auto;
-    padding: 100px;
+    padding: 0 1rem;
 }
 
 

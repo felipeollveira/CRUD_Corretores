@@ -2,49 +2,42 @@
 session_start();
 require_once '../includes/database.php';
 
-// Função para validar CPF (apenas dígitos)
+// Função para validar CPF (com dígitos verificadores)
 function validarCPF($cpf) {
-    // Remove caracteres não numéricos
     $cpf = preg_replace('/[^0-9]/', '', $cpf);
     
-    // Verifica se tem 11 dígitos
-    if (strlen($cpf) != 11) {
+    if (strlen($cpf) != 11 || preg_match('/(\d)\1{10}/', $cpf)) {
         return false;
     }
-    
     return true;
 }
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id = $_POST['id'] ?? null;
-    $cpf = $conn->real_escape_string($_POST['cpf']);
-    $creci = $conn->real_escape_string($_POST['creci']);
-    $nome = $conn->real_escape_string($_POST['nome']);
+    $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
+    $cpfNumeros = preg_replace('/[^0-9]/', '', $_POST['cpf']);
+    $creci = trim($_POST['creci']);
+    $nome = trim($_POST['nome']);
 
-    
-
+    // Validações
     $errors = [];
     
     if (!validarCPF($cpfNumeros)) {
-        $errors[] = "CPF inválido. Deve conter exatamente 11 dígitos numéricos.";
+        $errors[] = "CPF inválido. Deve conter 11 dígitos válidos.";
     }
     
-    //  2 caracteres, máximo 20 - creci
-    if (strlen($creci) < 2 || strlen($creci) > 20) {
-        $errors[] = "CRECI deve ter entre 2 e 20 caracteres.";
+    if (strlen($creci) < 2 || strlen($creci) > 20 || !preg_match('/^[a-zA-Z0-9]+$/', $creci)) {
+        $errors[] = "CRECI deve ter entre 2 e 20 caracteres alfanuméricos.";
     }
     
-    // mínimo 2 caracteres, máximo 100 - nome
     if (strlen($nome) < 2 || strlen($nome) > 100) {
         $errors[] = "Nome deve ter entre 2 e 100 caracteres.";
     }
     
- 
     if (empty($errors)) {
         try {
             if (empty($id)) {
-                // Verifica se CPF já existe (
+                // Verifica se CPF já existe
                 $check = $conn->prepare("SELECT id FROM corretores WHERE cpf = ?");
                 $check->bind_param("s", $cpfNumeros);
                 $check->execute();
@@ -54,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['message'] = "Erro: Este CPF já está cadastrado.";
                     $_SESSION['message_type'] = 'error';
                 } else {
-                    // INSErt
+                    // INSERT
                     $stmt = $conn->prepare("INSERT INTO corretores (cpf, creci, nome) VALUES (?, ?, ?)");
                     $stmt->bind_param("sss", $cpfNumeros, $creci, $nome);
                     
@@ -64,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             } else {
-                // Verifica se CPF já existe 
+                // Verifica se CPF já existe em outro registro
                 $check = $conn->prepare("SELECT id FROM corretores WHERE cpf = ? AND id != ?");
                 $check->bind_param("si", $cpfNumeros, $id);
                 $check->execute();
@@ -74,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['message'] = "Erro: Este CPF já está cadastrado em outro corretor.";
                     $_SESSION['message_type'] = 'error';
                 } else {
-                
+                    // UPDATE
                     $stmt = $conn->prepare("UPDATE corretores SET cpf=?, creci=?, nome=? WHERE id=?");
                     $stmt->bind_param("sssi", $cpfNumeros, $creci, $nome, $id);
                     
@@ -85,29 +78,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } catch (Exception $e) {
-            $_SESSION['message'] = "Erro no banco de dados: " . $e->getMessage();
+            error_log("Database error: " . $e->getMessage());
+            $_SESSION['message'] = "Erro no processamento dos dados.";
             $_SESSION['message_type'] = 'error';
         }
     } else {
         $_SESSION['message'] = implode("<br>", $errors);
         $_SESSION['message_type'] = 'error';
-        $_SESSION['old_input'] = $_POST; 
+        $_SESSION['old_input'] = $_POST;
     }
 }
 
-if (isset($_GET['delete'])) {
-    $id = (int)$_GET['delete'];
+// Processar exclusão via POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+    $id = (int)$_POST['delete'];
     
     try {
-        $stmt = $conn->prepare("DELETE FROM corretores WHERE id = ?");
-        $stmt->bind_param("i", $id);
+        // Verifica se o registro existe antes de deletar
+        $check = $conn->prepare("SELECT id FROM corretores WHERE id = ?");
+        $check->bind_param("i", $id);
+        $check->execute();
+        $check->store_result();
         
-        if ($stmt->execute()) {
-            $_SESSION['message'] = "Corretor excluído com sucesso!";
-            $_SESSION['message_type'] = 'success';
+        if ($check->num_rows > 0) {
+            $stmt = $conn->prepare("DELETE FROM corretores WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            
+            if ($stmt->execute()) {
+                $_SESSION['message'] = "Corretor excluído com sucesso!";
+                $_SESSION['message_type'] = 'success';
+            }
+        } else {
+            $_SESSION['message'] = "Erro: Corretor não encontrado.";
+            $_SESSION['message_type'] = 'error';
         }
     } catch (Exception $e) {
-        $_SESSION['message'] = "Erro ao excluir: " . $e->getMessage();
+        error_log("Delete error: " . $e->getMessage());
+        $_SESSION['message'] = "Erro ao excluir corretor.";
         $_SESSION['message_type'] = 'error';
     }
 }

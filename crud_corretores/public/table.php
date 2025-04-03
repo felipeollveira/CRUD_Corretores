@@ -15,23 +15,28 @@ $result = $conn->query("SELECT * FROM corretores ORDER BY id DESC");
         <tbody>
             <?php while($row = $result->fetch_assoc()): ?>
             <tr>
-                <td><?= htmlspecialchars($row['nome']) ?></td>
-                <td><?= htmlspecialchars($row['creci']) ?></td>
-                <td><?= htmlspecialchars($row['cpf']) ?></td>
+                <td><?= htmlspecialchars($row['nome'], ENT_QUOTES, 'UTF-8') ?></td>
+                <td><?= htmlspecialchars($row['creci'], ENT_QUOTES, 'UTF-8') ?></td>
+                <td><?= htmlspecialchars($row['cpf'], ENT_QUOTES, 'UTF-8') ?></td>
                 <td class="actions">
-                    <button class="edit-btn" 
-                            data-id="<?= htmlspecialchars($row['id']) ?>"
-                            data-nome="<?= htmlspecialchars($row['nome']) ?>"
-                            data-creci="<?= htmlspecialchars($row['creci']) ?>"
-                            data-cpf="<?= htmlspecialchars($row['cpf']) ?>"
+
+                    <!-- Btn edita -->
+                      <button class="edit-btn" 
+                            data-id="<?= htmlspecialchars($row['id'], ENT_QUOTES, 'UTF-8') ?>"
+                            data-nome="<?= htmlspecialchars($row['nome'], ENT_QUOTES, 'UTF-8') ?>"
+                            data-creci="<?= htmlspecialchars($row['creci'], ENT_QUOTES, 'UTF-8') ?>"
+                            data-cpf="<?= htmlspecialchars($row['cpf'], ENT_QUOTES, 'UTF-8') ?>"
                             title="Editar registro">
                         Editar
                     </button>
-                    <button class="delete-btn" 
-                            data-id="<?= $row['id'] ?>"
-                            title="Excluir registro">
-                        Excluir
-                    </button>
+                    
+                    <!-- Formulário de Exclusão com CSRF Token -->
+                    <form method="POST" action="../app/middleares/process.php" class="delete-form">
+                        <input type="hidden" name="delete" value="<?= htmlspecialchars($row['id'], ENT_QUOTES, 'UTF-8') ?>">
+                        <button type="submit" class="delete-btn" onclick="return confirm('Tem certeza que deseja excluir este corretor?')" title="Excluir registro">
+                            Excluir
+                        </button>
+                    </form>
                 </td>
             </tr>
             <?php endwhile; ?>
